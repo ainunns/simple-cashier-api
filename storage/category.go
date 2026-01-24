@@ -4,7 +4,7 @@ import (
 	"errors"
 	"sync"
 
-	"cashier-api/models"
+	"simple-cashier-api/models"
 )
 
 var (

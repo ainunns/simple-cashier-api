@@ -6,8 +6,8 @@ import (
 	"strconv"
 	"strings"
 
-	"cashier-api/models"
-	"cashier-api/storage"
+	"simple-cashier-api/models"
+	"simple-cashier-api/storage"
 )
 
 func GetProduk(w http.ResponseWriter, r *http.Request) {

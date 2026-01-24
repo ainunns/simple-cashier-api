@@ -5,7 +5,7 @@ import (
 	"log"
 	"net/http"
 
-	"cashier-api/handlers"
+	"simple-cashier-api/handlers"
 )
 
 func main() {
