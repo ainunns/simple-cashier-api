@@ -11,6 +11,8 @@ import (
 func main() {
 	http.HandleFunc("/api/produk", handlers.ProdukHandler)
 	http.HandleFunc("/api/produk/", handlers.ProdukHandler)
+	http.HandleFunc("/api/categories", handlers.CategoryHandler)
+	http.HandleFunc("/api/categories/", handlers.CategoryHandler)
 	http.HandleFunc("/health", handlers.HealthCheck)
 
 	fmt.Println("Server running di localhost:8080")
