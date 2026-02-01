@@ -47,6 +47,13 @@ func main() {
 	http.HandleFunc("/api/products", productHandler.HandleProducts)
 	http.HandleFunc("/api/products/", productHandler.HandleProductByID)
 
+	categoryRepo := repositories.NewCategoryRepository(db)
+	categoryService := services.NewCategoryService(categoryRepo)
+	categoryHandler := handlers.NewCategoryHandler(categoryService)
+
+	http.HandleFunc("/api/categories", categoryHandler.HandleCategories)
+	http.HandleFunc("/api/categories/", categoryHandler.HandleCategoryByID)
+
 	addr := "0.0.0.0:" + config.Port
 	fmt.Println("Server running on", addr)
 
