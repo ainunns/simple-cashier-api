@@ -108,14 +108,15 @@ func (repo *TransactionRepository) CreateTransaction(items []models.CheckoutItem
 	}, nil
 }
 
-func (repo *TransactionRepository) GetTodaysReport() (*models.TransactionReport, error) {
+func (repo *TransactionRepository) GetTransactionReport(startDate time.Time, endDate time.Time) (*models.TransactionReport, error) {
 	var r models.TransactionReport
 
 	err := repo.db.QueryRow(
 		`SELECT coalesce(sum(td.subtotal), 0) as total_revenue, count(DISTINCT t.id) as total_transaksi
 						FROM transactions t
 						LEFT JOIN transaction_details td ON t.id = td.transaction_id
-						WHERE DATE(t.created_at) = CURRENT_DATE;`,
+						WHERE DATE($1) <= DATE(t.created_at) AND DATE(t.created_at) <= DATE($2)`,
+		&startDate, &endDate,
 	).Scan(&r.TotalRevenue, &r.TotalTransaksi)
 	if err != nil {
 		return nil, err
@@ -127,12 +128,13 @@ func (repo *TransactionRepository) GetTodaysReport() (*models.TransactionReport,
   						FROM transactions t
   						LEFT JOIN transaction_details td ON t.id = td.transaction_id
   						JOIN products p ON td.product_id = p.id
-  						WHERE DATE(t.created_at) = CURRENT_DATE
+  						WHERE DATE($1) <= DATE(t.created_at) AND DATE(t.created_at) <= DATE($2)
 							GROUP BY p.id, p.name
 						)
 						SELECT nama, qty_terjual
 						FROM ranked_sales
-						WHERE sales_rank = 1;`)
+						WHERE sales_rank = 1;`,
+		&startDate, &endDate)
 	if err != nil {
 		return nil, err
 	}

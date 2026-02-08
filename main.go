@@ -69,7 +69,8 @@ func main() {
 
 	http.HandleFunc("/api/checkout", transactionHandler.HandleCheckout)
 
-	http.HandleFunc("/api/report/hari-ini", transactionHandler.GetTodaysReport)
+	http.HandleFunc("/api/report/hari-ini", transactionHandler.HandleGetTodaysReport)
+	http.HandleFunc("/api/report", transactionHandler.HandleGetRangeDateTransactionReport)
 
 	addr := "0.0.0.0:" + config.Port
 	fmt.Println("Server running on", addr)
