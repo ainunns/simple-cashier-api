@@ -1,47 +1,73 @@
 # Simple Cashier API
 
-A simple RESTful API for managing products and categories in a cashier system. Built with Go following clean architecture principles with modular design.
+A simple RESTful API for managing products, categories, and transactions in a cashier/POS system. Built with Go following clean architecture principles with proper separation of concerns using handlers, services, and repositories layers.
 
 ## Features
 
-- CRUD operations for Products (Produk)
-- CRUD operations for Categories
-- Thread-safe data storage using mutex
-- Clean architecture with separate layers (models, handlers, storage)
-- JSON API responses
-- Health check endpoint
+- **Product Management**: CRUD operations with search by name functionality
+- **Category Management**: CRUD operations for product categories
+- **Transaction Processing**: Checkout functionality with automatic stock management
+- **Transaction Reports**: Daily and date-ranged transaction reports with best-selling products
+- **PostgreSQL Database**: Persistent data storage with connection pooling
+- **Clean Architecture**: Separated layers (handlers, services, repositories)
+- **Environment Configuration**: Configurable via environment variables
+- **JSON API**: RESTful endpoints with JSON responses
 
 ## Project Structure
 
 ```
-simple-cashier-api/
-├── main.go              # Application entry point and routing
-├── go.mod               # Go module dependencies
-├── models/              # Data models
-│   ├── produk.go        # Product model definition
-│   └── category.go      # Category model definition
-├── handlers/            # HTTP handlers
-│   ├── produk.go        # Product HTTP handlers
-│   ├── category.go      # Category HTTP handlers
-│   └── health.go        # Health check handler
-└── storage/             # Data storage layer
-    ├── produk.go        # Product storage with thread-safe operations
-    └── category.go      # Category storage with thread-safe operations
+cashier-api/
+├── main.go                        # Application entry point and routing
+├── go.mod                         # Go module dependencies
+├── .env.example                   # Environment configuration
+├── database/                      # Database connection
+│   └── database.go                # PostgreSQL connection setup
+├── models/                        # Data models
+│   ├── product.go                 # Product models
+│   ├── category.go                # Category model
+│   └── transaction.go             # Transaction models
+├── handlers/                      # HTTP handlers (presentation layer)
+│   ├── product_handler.go         # Product HTTP handlers
+│   ├── category_handler.go        # Category HTTP handlers
+│   └── transaction_handler.go     # Transaction HTTP handlers
+├── services/                      # Business logic layer
+│   ├── product_service.go         # Product business logic
+│   ├── category_service.go        # Category business logic
+│   └── transaction_service.go     # Transaction business logic
+└── repositories/                  # Data access layer
+    ├── product_repository.go      # Product database operations
+    ├── category_repository.go     # Category database operations
+    └── transaction_repository.go  # Transaction database operations
 ```
 
 ## Prerequisites
 
 - Go 1.23.2 or higher
+- PostgreSQL database
 
 ## Installation
 
 1. Clone the repository:
+
 ```bash
 git clone <repository-url>
-cd simple-cashier-api
+cd cashier-api
 ```
 
-2. Build the application:
+2. Install dependencies:
+
+```bash
+go mod download
+```
+
+3. Copy `.env.example` to `.env` file in the project root, then setup the application port and database connection:
+
+```bash
+cp .env.example .env
+```
+
+4. Build the application:
+
 ```bash
 go build
 ```
@@ -49,16 +75,18 @@ go build
 ## Running the Server
 
 Start the server:
+
 ```bash
 go run main.go
 ```
 
 Or run the compiled binary:
+
 ```bash
 ./simple-cashier-api
 ```
 
-The server will start on `http://localhost:8080`
+The server will start on the configured port (default: `http://0.0.0.0:8888`)
 
 ## API Documentation
 
@@ -69,6 +97,7 @@ Check if the API is running.
 **Endpoint:** `GET /health`
 
 **Response:**
+
 ```json
 {
   "status": "OK",
@@ -78,122 +107,152 @@ Check if the API is running.
 
 ---
 
-### Products (Produk)
+### Products
 
 #### Get All Products
-Get a list of all products.
 
-**Endpoint:** `GET /api/produk`
+Get a list of all products with optional search by name.
+
+**Endpoint:** `GET /api/products`
+
+**Query Parameters:**
+
+- `name` (optional): Filter products by name
+
+**Example:** `GET /api/products?name=Indomie`
 
 **Response:**
+
 ```json
 [
   {
     "id": 1,
-    "nama": "Indomie Godog",
-    "harga": 3500,
-    "stok": 10
-  },
-  {
-    "id": 2,
-    "nama": "Vit 1000ml",
-    "harga": 3000,
-    "stok": 40
+    "name": "Indomie Goreng",
+    "price": 3500,
+    "stock": 100,
+    "category_id": 1,
+    "category": {
+      "id": 1,
+      "name": "Makanan",
+      "description": "Kategori untuk makanan"
+    }
   }
 ]
 ```
 
 #### Get Product by ID
-Get details of a specific product.
 
-**Endpoint:** `GET /api/produk/{id}`
+Get details of a specific product including its category.
 
-**Example:** `GET /api/produk/1`
+**Endpoint:** `GET /api/products/{id}`
+
+**Example:** `GET /api/products/1`
 
 **Response:**
+
 ```json
 {
   "id": 1,
-  "nama": "Indomie Godog",
-  "harga": 3500,
-  "stok": 10
+  "name": "Indomie Goreng",
+  "price": 3500,
+  "stock": 100,
+  "category_id": 1,
+  "category": {
+    "id": 1,
+    "name": "Makanan",
+    "description": "Kategori untuk makanan"
+  }
 }
 ```
 
 #### Create Product
+
 Create a new product.
 
-**Endpoint:** `POST /api/produk`
+**Endpoint:** `POST /api/products`
 
 **Request Body:**
+
 ```json
 {
-  "nama": "Aqua 600ml",
-  "harga": 2000,
-  "stok": 100
+  "name": "Aqua 600ml",
+  "price": 2000,
+  "stock": 100,
+  "category_id": 2
 }
 ```
 
 **Response:** `201 Created`
+
 ```json
 {
   "id": 4,
-  "nama": "Aqua 600ml",
-  "harga": 2000,
-  "stok": 100
+  "name": "Aqua 600ml",
+  "price": 2000,
+  "stock": 100,
+  "category_id": 2
 }
 ```
 
 #### Update Product
+
 Update an existing product.
 
-**Endpoint:** `PUT /api/produk/{id}`
+**Endpoint:** `PUT /api/products/{id}`
 
-**Example:** `PUT /api/produk/1`
+**Example:** `PUT /api/products/1`
 
 **Request Body:**
+
 ```json
 {
-  "nama": "Indomie Goreng",
-  "harga": 4000,
-  "stok": 20
+  "name": "Indomie Goreng Special",
+  "price": 4000,
+  "stock": 50,
+  "category_id": 1
 }
 ```
 
 **Response:**
+
 ```json
 {
   "id": 1,
-  "nama": "Indomie Goreng",
-  "harga": 4000,
-  "stok": 20
+  "name": "Indomie Goreng Special",
+  "price": 4000,
+  "stock": 50,
+  "category_id": 1
 }
 ```
 
 #### Delete Product
+
 Delete a product.
 
-**Endpoint:** `DELETE /api/produk/{id}`
+**Endpoint:** `DELETE /api/products/{id}`
 
-**Example:** `DELETE /api/produk/1`
+**Example:** `DELETE /api/products/1`
 
 **Response:**
+
 ```json
 {
-  "message": "sukses delete"
+  "message": "Product deleted successfully"
 }
 ```
 
 ---
 
-### Categories (Kategori)
+### Categories
 
 #### Get All Categories
+
 Get a list of all categories.
 
 **Endpoint:** `GET /api/categories`
 
 **Response:**
+
 ```json
 [
   {
@@ -205,16 +264,12 @@ Get a list of all categories.
     "id": 2,
     "name": "Minuman",
     "description": "Kategori untuk minuman"
-  },
-  {
-    "id": 3,
-    "name": "Sembako",
-    "description": "Kategori untuk sembako"
   }
 ]
 ```
 
 #### Get Category by ID
+
 Get details of a specific category.
 
 **Endpoint:** `GET /api/categories/{id}`
@@ -222,6 +277,7 @@ Get details of a specific category.
 **Example:** `GET /api/categories/1`
 
 **Response:**
+
 ```json
 {
   "id": 1,
@@ -231,11 +287,13 @@ Get details of a specific category.
 ```
 
 #### Create Category
+
 Create a new category.
 
 **Endpoint:** `POST /api/categories`
 
 **Request Body:**
+
 ```json
 {
   "name": "Snack",
@@ -244,15 +302,17 @@ Create a new category.
 ```
 
 **Response:** `201 Created`
+
 ```json
 {
-  "id": 4,
+  "id": 3,
   "name": "Snack",
   "description": "Kategori untuk snack"
 }
 ```
 
 #### Update Category
+
 Update an existing category.
 
 **Endpoint:** `PUT /api/categories/{id}`
@@ -260,6 +320,7 @@ Update an existing category.
 **Example:** `PUT /api/categories/1`
 
 **Request Body:**
+
 ```json
 {
   "name": "Makanan Berat",
@@ -268,6 +329,7 @@ Update an existing category.
 ```
 
 **Response:**
+
 ```json
 {
   "id": 1,
@@ -277,6 +339,7 @@ Update an existing category.
 ```
 
 #### Delete Category
+
 Delete a category.
 
 **Endpoint:** `DELETE /api/categories/{id}`
@@ -284,85 +347,233 @@ Delete a category.
 **Example:** `DELETE /api/categories/1`
 
 **Response:**
+
 ```json
 {
-  "message": "sukses delete"
+  "message": "Category deleted successfully"
+}
+```
+
+---
+
+### Transactions
+
+#### Checkout
+
+Process a transaction with multiple items. This endpoint automatically deducts stock and calculates totals.
+
+**Endpoint:** `POST /api/checkout`
+
+**Request Body:**
+
+```json
+{
+  "items": [
+    {
+      "product_id": 1,
+      "quantity": 2
+    },
+    {
+      "product_id": 3,
+      "quantity": 1
+    }
+  ]
+}
+```
+
+**Response:**
+
+```json
+{
+  "id": 1,
+  "total_amount": 10000,
+  "created_at": "2026-02-08T14:30:00Z",
+  "details": [
+    {
+      "id": 1,
+      "transaction_id": 1,
+      "product_id": 1,
+      "product_name": "Indomie Goreng",
+      "quantity": 2,
+      "subtotal": 7000
+    },
+    {
+      "id": 2,
+      "transaction_id": 1,
+      "product_id": 3,
+      "product_name": "Aqua 600ml",
+      "quantity": 1,
+      "subtotal": 3000
+    }
+  ]
+}
+```
+
+#### Get Today's Transaction Report
+
+Get transaction report for today including total revenue, transaction count, and best-selling products.
+
+**Endpoint:** `GET /api/report/hari-ini`
+
+**Response:**
+
+```json
+{
+  "total_revenue": 150000,
+  "total_transaksi": 12,
+  "produk_terlaris": {
+    "nama": "Indomie Goreng",
+    "qty_terjual": 25
+  }
+}
+```
+
+#### Get Transaction Report by Date Range
+
+Get transaction report for a specific date range.
+
+**Endpoint:** `GET /api/report`
+
+**Query Parameters:**
+
+- `start_date` (optional): Start date in YYYY-MM-DD format
+- `end_date` (optional): End date in YYYY-MM-DD format
+
+**Example:** `GET /api/report?start_date=2026-02-01&end_date=2026-02-07`
+
+**Response:**
+
+```json
+{
+  "total_revenue": 500000,
+  "total_transaksi": 45,
+  "produk_terlaris": {
+    "nama": "Indomie Goreng",
+    "qty_terjual": 80
+  }
 }
 ```
 
 ## Testing with cURL
 
+### Health Check
+
+```bash
+curl http://localhost:8888/health
+```
+
 ### Products
 
 ```bash
 # Get all products
-curl http://localhost:8080/api/produk
+curl http://localhost:8888/api/products
+
+# Get all products with name filter
+curl http://localhost:8888/api/products?name=Indomie
 
 # Get product by ID
-curl http://localhost:8080/api/produk/1
+curl http://localhost:8888/api/products/1
 
 # Create product
-curl -X POST http://localhost:8080/api/produk \
+curl -X POST http://localhost:8888/api/products \
   -H "Content-Type: application/json" \
-  -d '{"nama":"Aqua 600ml","harga":2000,"stok":100}'
+  -d '{"name":"Aqua 600ml","price":2000,"stock":100,"category_id":2}'
 
 # Update product
-curl -X PUT http://localhost:8080/api/produk/1 \
+curl -X PUT http://localhost:8888/api/products/1 \
   -H "Content-Type: application/json" \
-  -d '{"nama":"Indomie Goreng","harga":4000,"stok":20}'
+  -d '{"name":"Indomie Goreng Special","price":4000,"stock":50,"category_id":1}'
 
 # Delete product
-curl -X DELETE http://localhost:8080/api/produk/1
+curl -X DELETE http://localhost:8888/api/products/1
 ```
 
 ### Categories
 
 ```bash
 # Get all categories
-curl http://localhost:8080/api/categories
+curl http://localhost:8888/api/categories
 
 # Get category by ID
-curl http://localhost:8080/api/categories/1
+curl http://localhost:8888/api/categories/1
 
 # Create category
-curl -X POST http://localhost:8080/api/categories \
+curl -X POST http://localhost:8888/api/categories \
   -H "Content-Type: application/json" \
   -d '{"name":"Snack","description":"Kategori untuk snack"}'
 
 # Update category
-curl -X PUT http://localhost:8080/api/categories/1 \
+curl -X PUT http://localhost:8888/api/categories/1 \
   -H "Content-Type: application/json" \
   -d '{"name":"Makanan Berat","description":"Kategori untuk makanan berat"}'
 
 # Delete category
-curl -X DELETE http://localhost:8080/api/categories/1
+curl -X DELETE http://localhost:8888/api/categories/1
 ```
 
-### Health Check
+### Transactions
 
 ```bash
-curl http://localhost:8080/health
+# Checkout transaction
+curl -X POST http://localhost:8888/api/checkout \
+  -H "Content-Type: application/json" \
+  -d '{
+    "items": [
+      {"product_id": 1, "quantity": 2},
+      {"product_id": 3, "quantity": 1}
+    ]
+  }'
+
+# Get today's transaction report
+curl http://localhost:8888/api/report/hari-ini
+
+# Get transaction report by date range
+curl "http://localhost:8888/api/report?start_date=2026-02-01&end_date=2026-02-07"
 ```
 
 ## Technologies Used
 
 - **Go 1.23.2** - Programming language
-- **net/http** - HTTP server and client implementation
+- **PostgreSQL** - Database (via Supabase)
+- **lib/pq** - PostgreSQL driver for Go
+- **Viper** - Configuration management
+- **net/http** - HTTP server implementation
 - **encoding/json** - JSON encoding and decoding
+
+## Architecture
+
+This project follows Clean Architecture principles with clear separation of concerns:
+
+- **Handlers Layer**: HTTP request/response handling and routing
+- **Services Layer**: Business logic and transaction management
+- **Repositories Layer**: Data access and database operations
+- **Models Layer**: Data structures and domain entities
 
 ## Data Models
 
-### Product (Produk)
+### Product
+
 ```go
-type Produk struct {
-    ID    int    `json:"id"`
-    Nama  string `json:"nama"`
-    Harga int    `json:"harga"`
-    Stok  int    `json:"stok"`
+type Product struct {
+    ID         int    `json:"id"`
+    Name       string `json:"name"`
+    Price      int    `json:"price"`
+    Stock      int    `json:"stock"`
+    CategoryID *int   `json:"category_id"`
+}
+
+type ProductDetail struct {
+    ID         int       `json:"id"`
+    Name       string    `json:"name"`
+    Price      int       `json:"price"`
+    Stock      int       `json:"stock"`
+    CategoryID *int      `json:"category_id"`
+    Category   *Category `json:"category,omitempty"`
 }
 ```
 
-### Category (Kategori)
+### Category
+
 ```go
 type Category struct {
     ID          int    `json:"id"`
@@ -371,9 +582,30 @@ type Category struct {
 }
 ```
 
+### Transaction
+
+```go
+type Transaction struct {
+    ID          int                 `json:"id"`
+    TotalAmount int                 `json:"total_amount"`
+    CreatedAt   time.Time           `json:"created_at"`
+    Details     []TransactionDetail `json:"details"`
+}
+
+type TransactionDetail struct {
+    ID            int    `json:"id"`
+    TransactionID int    `json:"transaction_id"`
+    ProductID     int    `json:"product_id"`
+    ProductName   string `json:"product_name,omitempty"`
+    Quantity      int    `json:"quantity"`
+    Subtotal      int    `json:"subtotal"`
+}
+```
+
 ## Notes
 
-- This API uses in-memory storage. Data will be lost when the server restarts.
-- The implementation uses `sync.RWMutex` for thread-safe concurrent access to data.
-- IDs are automatically generated based on the current number of items.
-- All endpoints return JSON responses with appropriate HTTP status codes.
+- The API uses PostgreSQL for persistent data storage
+- Connection pooling is configured with max 25 open connections and 5 idle connections
+- All endpoints return JSON responses with appropriate HTTP status codes
+- Stock is automatically managed during checkout transactions
+- Transaction reports calculate revenue and identify best-selling products
