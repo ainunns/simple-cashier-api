@@ -3,8 +3,11 @@ package repositories
 import (
 	"database/sql"
 	"fmt"
+	"time"
 
 	"simple-cashier-api/models"
+
+	"github.com/lib/pq"
 )
 
 type TransactionRepository struct {
@@ -54,17 +57,43 @@ func (repo *TransactionRepository) CreateTransaction(items []models.CheckoutItem
 	}
 
 	var transactionID int
-	err = tx.QueryRow("INSERT INTO transactions (total_amount) VALUES ($1) RETURNING id", totalAmount).Scan(&transactionID)
+	var createdAt time.Time
+	err = tx.QueryRow("INSERT INTO transactions (total_amount) VALUES ($1) RETURNING id, created_at", totalAmount).Scan(&transactionID, &createdAt)
 	if err != nil {
 		return nil, err
 	}
 
-	for i := range details {
-		details[i].TransactionID = transactionID
-		_, err = tx.Exec("INSERT INTO transaction_details (transaction_id, product_id, quantity, subtotal) VALUES ($1, $2, $3, $4)", transactionID, details[i].ProductID, details[i].Quantity, details[i].Subtotal)
+	txIDs := make([]int, len(details))
+	productIDs := make([]int, len(details))
+	quantities := make([]int, len(details))
+	subtotals := make([]int, len(details))
+
+	for i, d := range details {
+		txIDs[i] = transactionID
+		productIDs[i] = d.ProductID
+		quantities[i] = d.Quantity
+		subtotals[i] = d.Subtotal
+	}
+
+	rows, err := tx.Query(
+		`INSERT INTO transaction_details (transaction_id, product_id, quantity, subtotal)
+						SELECT * FROM unnest($1::int[], $2::int[], $3::int[], $4::int[])
+						RETURNING id, transaction_id, product_id, quantity, subtotal`,
+		pq.Array(txIDs), pq.Array(productIDs), pq.Array(quantities), pq.Array(subtotals))
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var insertedDetails []models.TransactionDetail
+	for rows.Next() {
+		var d models.TransactionDetail
+		err = rows.Scan(&d.ID, &d.TransactionID, &d.ProductID, &d.Quantity, &d.Subtotal)
 		if err != nil {
 			return nil, err
 		}
+
+		insertedDetails = append(insertedDetails, d)
 	}
 
 	if err := tx.Commit(); err != nil {
@@ -73,7 +102,8 @@ func (repo *TransactionRepository) CreateTransaction(items []models.CheckoutItem
 
 	return &models.Transaction{
 		ID:          transactionID,
+		CreatedAt:   createdAt,
 		TotalAmount: totalAmount,
-		Details:     details,
+		Details:     insertedDetails,
 	}, nil
 }
