@@ -107,3 +107,62 @@ func (repo *TransactionRepository) CreateTransaction(items []models.CheckoutItem
 		Details:     insertedDetails,
 	}, nil
 }
+
+func (repo *TransactionRepository) GetTodaysReport() (*models.TransactionReport, error) {
+	var r models.TransactionReport
+
+	err := repo.db.QueryRow(
+		`SELECT coalesce(sum(td.subtotal), 0) as total_revenue, count(DISTINCT t.id) as total_transaksi
+						FROM transactions t
+						LEFT JOIN transaction_details td ON t.id = td.transaction_id
+						WHERE DATE(t.created_at) = CURRENT_DATE;`,
+	).Scan(&r.TotalRevenue, &r.TotalTransaksi)
+	if err != nil {
+		return nil, err
+	}
+
+	rows, err := repo.db.Query(
+		`WITH ranked_sales AS (
+  						SELECT p.name as nama, coalesce(sum(td.quantity), 0) as qty_terjual, RANK() OVER (ORDER BY COALESCE(SUM(td.quantity), 0) DESC) as sales_rank
+  						FROM transactions t
+  						LEFT JOIN transaction_details td ON t.id = td.transaction_id
+  						JOIN products p ON td.product_id = p.id
+  						WHERE DATE(t.created_at) = CURRENT_DATE
+							GROUP BY p.id, p.name
+						)
+						SELECT nama, qty_terjual
+						FROM ranked_sales
+						WHERE sales_rank = 1;`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var bestSellingProducts []models.BestSellingProduct
+	for rows.Next() {
+		var p models.BestSellingProduct
+		err = rows.Scan(&p.Nama, &p.QuantitySold)
+		if err != nil {
+			return nil, err
+		}
+
+		bestSellingProducts = append(bestSellingProducts, p)
+	}
+
+	if len(bestSellingProducts) == 1 {
+		return &models.TransactionReport{
+			TotalRevenue:   r.TotalRevenue,
+			TotalTransaksi: r.TotalTransaksi,
+			ProdukTerlaris: models.BestSellingProduct{
+				Nama:         bestSellingProducts[0].Nama,
+				QuantitySold: bestSellingProducts[0].QuantitySold,
+			},
+		}, nil
+	}
+
+	return &models.TransactionReport{
+		TotalRevenue:   r.TotalRevenue,
+		TotalTransaksi: r.TotalTransaksi,
+		ProdukTerlaris: bestSellingProducts,
+	}, nil
+}

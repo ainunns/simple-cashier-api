@@ -16,3 +16,7 @@ func NewTransactionService(repo *repositories.TransactionRepository) *Transactio
 func (s *TransactionService) Checkout(items []models.CheckoutItem) (*models.Transaction, error) {
 	return s.repo.CreateTransaction(items)
 }
+
+func (s *TransactionService) GetTodaysReport() (*models.TransactionReport, error) {
+	return s.repo.GetTodaysReport()
+}

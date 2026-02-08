@@ -16,3 +16,8 @@ type ProductDetail struct {
 	CategoryID *int      `json:"category_id"`
 	Category   *Category `json:"category,omitempty"`
 }
+
+type BestSellingProduct struct {
+	Nama         string `json:"nama"`
+	QuantitySold int    `json:"qty_terjual"`
+}
